@@ -131,6 +131,7 @@ class Servo:
         if self._pinAttached != None:
             self._pwm = PWM(Pin(self._pinAttached))
             # self._pwm.period(self._period)
+            self._pwm.freq(self._frequency)
             self._pwm.duty_u16(int(self._period))
             # self._pwm.enable(True)
             # self._pwm.write((self._uSecs/1000000.0)/self._period)

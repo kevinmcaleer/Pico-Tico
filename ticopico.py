@@ -8,7 +8,7 @@ from tft_st7735 import TFT
 from time import sleep
 from math import acos, cos, sin, atan2, floor, sqrt, pi
 from servo import Servo
-import random
+from random import *
 from machine import SPI, Pin
 from sysfont import sysfont
 
@@ -17,13 +17,13 @@ SERIAL_MONITOR_MODE = True
 
 # Servo Pins
 
-LEFT_SERVO_PIN = 3
+LEFT_SERVO_PIN = 5
 RIGHT_SERVO_PIN = 6
-LIFT_SERVO_PIN = 5
+LIFT_SERVO_PIN = 3
 
-lift_servo = Servo() # need to change the servo library vvv
-left_servo = Servo()
-right_servo = Servo()
+lift_servo = Servo(minWidth=550, maxWidth=2500, frequency=50)
+left_servo = Servo(minWidth=550, maxWidth=2500, frequency=50)
+right_servo = Servo(minWidth=550, maxWidth=2500, frequency=50)
 
 # LCD Pins
 TFT_CS = 10
@@ -34,8 +34,11 @@ TFT_DC = 9
 # sda = Pin(3)
 # cs = Pin(5)
 
-spi = SPI(0)
-tft = TFT(spi=spi, aDC=TFT_DC, aReset=TFT_RST, aCS=TFT_CS)
+# spi = SPI(0)
+# tft = TFT(spi=spi, aDC=TFT_DC, aReset=TFT_RST, aCS=TFT_CS)
+
+spi = SPI(1, baudrate=20000000, polarity=0, phase=0, sck=Pin(10), mosi=Pin(11), miso=None)
+tft=TFT(spi,16,17,18)
 
 # if the pen is not touching the board, this is the value you should change
 Z_OFFSET = 525
@@ -45,7 +48,7 @@ SERVO_LIFT = 1500
 LIFT0 = 1110 + Z_OFFSET
 LIFT1 = 925 + Z_OFFSET
 LIFT2 = 735 + Z_OFFSET
-LIFT_SPEED = 0.0001 # in seconds
+LIFT_SPEED = 0.01 # in seconds
 
 # Side Servo Calibration
 SERVO_LEFT_FACTOR = 690
@@ -83,39 +86,58 @@ empty_places = 9
 
 winner = -1
 
+WIN_X = 0
+WIN_Y = 80
+
 def setup():
     tft.initr()
+    tft.rotation(0)
     tft.fill(aColor=tft.BLACK)
+    wink_speed = 0.25
 
-    tft.fillcircle(aPos=[30,50], aRadius=25, aColor=tft.BLUE)
-    tft.fillcircle(aPos=[95,50],aRadius=25, aColor=tft.BLUE)
-    sleep(0.5)
-    tft.fillcircle(aPos=[30,50], aRadius=15, aColor=tft.BLACK)
-    tft.fillcircle(aPos=[95,50], aRadius=15, aColor=tft.BLACK)
-    sleep(0.5)
-    tft.fillcircle(aPos=[30,50], aRadius=15, aColor=tft.BLUE)
-    sleep(0.25)
-    tft.fillcircle(aPos=[30,50], aRadius=15, aColor=tft.BLACK)
-    sleep(0.25)
-    tft.fillcircle(aPos=[95,50], aRadius=25, aColor=tft.BLUE)
-    sleep(0.25)
-    tft.fillcircle(aPos=[95,50], aRadius=15, aColor=tft.BLACK)
-    sleep(0.25)
-    tft.fillcircle(aPos=[30,50], aRadius=15, aColor=tft.BLUE)
-    tft.fillcircle(aPos=[95,50], aRadius=15, aColor=tft.BLUE)
-    sleep(0.25)
-    tft.fillcircle(aPos=[30,50], aRadius=15, aColor=tft.BLACK)
-    tft.fillcircle(aPos=[95,50], aRadius=15, aColor=tft.BLACK)
-    sleep(1)
-    tft.text(aPos=[30,90], aString="I'M", aColor=tft.WHITE, aSize=2, nowrap=True)
-    tft.text(aPos=[30,120], aString="PICO-TICO", aColor=tft.BLUE, aSize=3, nowrap=True)
+    tft.fillcircle(aPos=[30,30], aRadius=25, aColor=tft.BLUE)
+    tft.fillcircle(aPos=[95,30],aRadius=25, aColor=tft.BLUE)
+    sleep(wink_speed)
+    tft.fillcircle(aPos=[30,30], aRadius=15, aColor=tft.BLACK)
+    tft.fillcircle(aPos=[95,30], aRadius=15, aColor=tft.BLACK)
+    sleep(wink_speed)
+    tft.fillcircle(aPos=[30,30], aRadius=15, aColor=tft.BLUE)
+    sleep(wink_speed/2)
+    tft.fillcircle(aPos=[30,30], aRadius=15, aColor=tft.BLACK)
+    sleep(wink_speed/2)
+    tft.fillcircle(aPos=[95,30], aRadius=25, aColor=tft.BLUE)
+    sleep(wink_speed/2)
+    tft.fillcircle(aPos=[95,30], aRadius=15, aColor=tft.BLACK)
+    sleep(wink_speed/2)
+    tft.fillcircle(aPos=[30,30], aRadius=15, aColor=tft.BLUE)
+    tft.fillcircle(aPos=[95,30], aRadius=15, aColor=tft.BLUE)
+    sleep(wink_speed/2)
+    tft.fillcircle(aPos=[30,30], aRadius=15, aColor=tft.BLACK)
+    tft.fillcircle(aPos=[95,30], aRadius=15, aColor=tft.BLACK)
+    sleep(wink_speed)
+    tft.text(aPos=[15,80], aString="I'M", aColor=tft.WHITE, aSize=2, nowrap=True, aFont=sysfont)
+    tft.text(aPos=[15,100], aString="PICO-TICO", aColor=tft.YELLOW, aSize=2, nowrap=True, aFont=sysfont)
+
+def window(x,y,width,height, title:str):
+    tft.fillrect(aStart=[x,y], aSize=[width, height], aColor=tft.WHITE)
+    tft.fillrect(aStart=[x+1,y+1], aSize=[width-1, 10], aColor=tft.GRAY)
+    tft.rect(aStart=[x,y], aSize=[width, height], aColor=tft.GRAY)
+    tft.fillrect(aStart=[x+2,y+2], aSize=[6, 6], aColor=tft.PURPLE)
+    
+    tft.hline(aStart=[x+10, y+3],aLen=width-14, aColor=tft.BLACK)
+    tft.hline(aStart=[x+10, y+5],aLen=width-14, aColor=tft.BLACK)
+    tft.hline(aStart=[x+10, y+7],aLen=width-14, aColor=tft.BLACK)
+
+    tft.fillrect(aStart=[x+3,y+12], aSize=[width-8, height-34], aColor=tft.BLACK)
+
+    # tft.text(aPos=[x+10, y+2], aString=title, aColor=tft.RED, aFont=sysfont, aSize=1)
 
 def draw_click_start_message():
     """ Draws the Click Start message """
     
-    tft.rect(aStart=[0,90], aSize=[130,100], aColor=tft.BLACK)
-    tft.text(aPos=[30,100], aString="Click", aColor=tft.YELLOW, aFont=sysfont, nowrap=True)
-    tft.text(aPos=[20,90], aString="Start", aColor=tft.YELLOW, aFont=sysfont, nowrap=True)
+    # tft.rect(aStart=[0,90], aSize=[130,100], aColor=tft.BLACK)
+    tft.text(aPos=[20,130], aString="Press S", aColor=tft.YELLOW, aFont=sysfont, nowrap=True)
+    tft.text(aPos=[20,140], aString="to Start", aColor=tft.YELLOW, aFont=sysfont, nowrap=True)
     sleep(0.250)
 
 def print_menu():
@@ -127,40 +149,33 @@ def print_menu():
 
 def draw_frame():
     lift(LIFT2)
+    sleep_value = 0.1
 
     # Vertical
-    # go
     draw_to(30,10)
-    sleep(0.5)
+    sleep(sleep_value)
     # draw
     lift(LIFT0)
     draw_to(25, 50)
     lift(LIFT2)
-
-    # go
     draw_to(47, 10)
-    sleep(0.5)
-    # draw
+    sleep(sleep_value)
     lift(LIFT0)
     draw_to(45, 50)
     lift(LIFT2)
 
     # Horizontal
-    # Go
     draw_to(10,23)
-    # Draw
     lift(LIFT0)
     draw_to(60,23)
     lift(LIFT2)
-    
-    # go
     draw_to(10, 35)
-    # Draw
     lift(LIFT0)
     draw_to(60, 35)
     lift(LIFT2)
 
 def go_home():
+    
     lift_servo.writeMicroseconds(800)
     left_servo.writeMicroseconds(1633)
     right_servo.writeMicroseconds(2289)
@@ -171,7 +186,7 @@ def go_home():
     lift(LIFT2 - 100) # Lift all the way up
     draw_to(ERASER_X, ERASER_Y)
     lift(LIFT0)
-    sleep(0.5)
+    sleep(0.1)
     print("Homed")
 
 
@@ -196,9 +211,7 @@ def set_xy(t_x:float, t_y:float):
     # print("c: (sqrt):", c)
 
     a1 = atan2(dy, dx)
-    # print("a1:", a1)
     a2 = return_angle(L1, L2, c)
-    # print("a2:", a2)
     left_servo.writeMicroseconds(floor(((a2 + a2 - pi) * SERVO_LEFT_FACTOR) + SERVO_LEFT_NULL))
 
     # Calculate joinr arm point for triangle of the right servo arm
@@ -206,10 +219,7 @@ def set_xy(t_x:float, t_y:float):
     hx = t_x + L3 * cos(((a1 - a2) + 0.621) + pi)
     hy = t_y + L3 * sin(((a1 - a2) + 0.621) + pi)
 
-    # print("hx:", hx, "hy:", hy)    
     # Calculate triangle betwen pen joints, servo_right and arm joint
-    # print("Calculate triange between pen joint, right servo and arm joint")
-
 
     dx = hx - O2X
     dy = hy - O2Y
@@ -264,14 +274,14 @@ def lift(lift:float):
     if SERVO_LIFT >= lift:
         # print("SERVO_LIFT >= lift", SERVO_LIFT, "lift:", lift)
         while SERVO_LIFT >= lift:
-            print("SERVO_LIFT >= lift", SERVO_LIFT, "lift:", lift)
+            # print("SERVO_LIFT >= lift", SERVO_LIFT, "lift:", lift)
             SERVO_LIFT -= 1
             lift_servo.writeMicroseconds(SERVO_LIFT)
             sleep(LIFT_SPEED)
     else:
         # print("SERVO_LIFT = ", SERVO_LIFT, "Lift:", lift)
         while (SERVO_LIFT <= lift):
-            print("SERVO_LIFT = ", SERVO_LIFT, "Lift:", lift)
+            # print("SERVO_LIFT = ", SERVO_LIFT, "Lift:", lift)
             SERVO_LIFT += 1
             lift_servo.writeMicroseconds(SERVO_LIFT)
             sleep(LIFT_SPEED)
@@ -395,6 +405,16 @@ def record_move(move:int):
         board_values[move -11] = 0
         empty_places -= 1
 
+def player_wins():
+    tft.fillrect(aStart=[0,80], aSize=[130,100], aColor=tft.BLACK)
+    tft.text(aPos=[20,90], aString="=YOU=", aColor=tft.RED, aFont=sysfont)
+    tft.text(aPos=[20,115], aString="=WIN=", aColor=tft.RED, aFont=sysfont)
+
+def pico_tico_wins():
+    tft.fillrect(aStart=[0,80],aSize=[130,100], aColor=tft.RED)
+    tft.text(aPos=[20,90], aString="TICO PICO", aColor=tft.YELLOW, aFont=sysfont)
+    tft.text(aPos=[20,115], aString="WINS!", aColor=tft.YELLOW, aFont=sysfont)
+
 def check_winner_col(col, player):
     global winner
     # Row
@@ -402,21 +422,16 @@ def check_winner_col(col, player):
         print("--== Winner Col ==--")
         print(player)
         if(player==0):
-            tft.rect(aStart=[0,90], aSize=[130,100], aColor=tft.BLACK)
-            tft.text(aPos=[20,90], aString="=YOU=", aColor=tft.RED)
-            tft.text(aPos=[20,115], aString="=WIN=", aColor=tft.RED)
- 
+           player_wins()
         else:
-            tft.rect(aStart=[0,90],aSize=[130,100], aColor=tft.BLUE)
-            tft.text(aPos=[20,90], aString="TICO_PICO", aColor=tft.BLUE)
-            tft.text(aPos=[20,115], aString="WINS!", aColor=tft.BLUE)
-    draw_to(55 -20 * (4 - col - 1), 10)
-    # Draw
-    lift(LIFT0)
-    draw_to(55 - 20 * (4 - col -1), 50)
-    lift(LIFT2)
+            pico_tico_wins()
+        draw_to(55 -20 * (4 - col - 1), 10)
+        # Draw
+        lift(LIFT0)
+        draw_to(55 - 20 * (4 - col -1), 50)
+        lift(LIFT2)
 
-    winner = player
+        winner = player
 
 def check_winner_row(row:int, player:int):
     global winner
@@ -425,13 +440,9 @@ def check_winner_row(row:int, player:int):
         print("--== Winner ROW ==--")
         print(player)
         if player==0:
-            tft.rect(aStart=[0,90], aSize=[130,100], aColor=tft.BLACK)
-            tft.text(aPos=[20,90], aString="=YOU=", aColor=tft.RED)
-            tft.text(aPos=[20,115], aString="=WIN=", aColor=tft.RED)
+            player_wins()
         else:
-            tft.rect(aStart=[0,90], aSize=[130,100], aColor=tft.BLACK)
-            tft.text(aPos=[20,90], aString="PICO-TICO", aColor=tft.RED)
-            tft.text(aPos=[20,115], aString="WINS!", aColor=tft.RED)
+            pico_tico_wins()
         draw_to(10, 43 - 14 * (row - 1))
         # Draw
         lift(LIFT0)
@@ -441,7 +452,7 @@ def check_winner_row(row:int, player:int):
         winner = player
 
 def reply_move():
-    rand_empty_place = random(empty_places) + 1
+    rand_empty_place = randrange(empty_places) + 1
     empty_places_found = 0
     for i in range(0,9):
         if board_values[i] == -1:
@@ -461,13 +472,9 @@ def check_winner_diag(diag:int, player:int):
             print("--== Winner DIAGONAL 1 ==--")
             print(player)
             if player==0:
-                tft.rect(aStart=[0,90], aSize=[130,100], aColor=tft.BLACK)
-                tft.text(aPos=[20,90],aString="=YOU=", aColor=tft.RED, aFont=sysfont)
-                tft.text(aPos=[20,115],aString="=WIN=", aColor=tft.RED, aFont=sysfont)
+                player_wins()
             else:
-                tft.rect(aStart=[0,90], aSize=[130,100], aColor=tft.BLACK)
-                tft.text(aPos=[20,90],aString="TICO", aColor=tft.BLUE, aFont=sysfont)
-                tft.text(aPos=[20,115],aString="WINS!", aColor=tft.BLUE, aFont=sysfont)
+                pico_tico_wins()
             draw_to(60,10)
             lift(LIFT0)
             draw_to(15,45)
@@ -475,17 +482,13 @@ def check_winner_diag(diag:int, player:int):
 
             winner = player
     else:
-        if (board_values[7,1] == player) and (board_values[5 -1] == player) and (board_values[3 ,1] == player):
+        if (board_values[7 - 1] == player) and (board_values[5-  1] == player) and (board_values[3 - 1] == player):
             print("--== Winner Diagonal 2 ==0--")
             print(player)
             if player == 0:
-                tft.rect(aStart=[0,90], aSize=[130,100], aColor=tft.BLACK)
-                tft.text(aPos=[20,90],aString="=YOU=", aColor=tft.RED, aFont=sysfont)
-                tft.text(aPos=[20,115],aString="=WIN=", aColor=tft.RED, aFont=sysfont)
+                player_wins()
             else:
-                tft.rect(aStart=[0,90], aSize=[130,100], aColor=tft.BLACK)
-                tft.text(aPos=[20,90],aString="TICO", aColor=tft.BLUE, aFont=sysfont)
-                tft.text(aPos=[20,115],aString="WINS!", aColor=tft.BLUE, aFont=sysfont)
+                pico_tico_wins()
             draw_to(10,10)
             lift(LIFT0)
             draw_to(60,50)
@@ -493,12 +496,15 @@ def check_winner_diag(diag:int, player:int):
             winner = player
 
 def start_game():
-    global winner
+    global winner, empty_places
     print("====GAME IS ON====")
-    tft.rect(aStart=[0,90], aSize=[130,100], aColor=tft.BLACK)
-    tft.text(aPos=[20,90], aString="GAME", aFont=sysfont, aColor=tft.BLUE)
-    tft.text(aPos=[20,115], aString="IS", aFont=sysfont, aColor=tft.BLUE)
-    tft.text(aPos=[20,140], aString="ON", aFont=sysfont, aColor=tft.BLUE)
+    x,y,width, height = 0, 80, 130, 100
+
+    window(x,y,width,height, "LETS GO")
+    # tft.fillrect(aStart=[0,80], aSize=[130,100], aColor=tft.BLACK)
+    tft.text(aPos=[x+10,y+20], aString="GAME", aFont=sysfont, aColor=tft.WHITE)
+    tft.text(aPos=[x+10,y+40], aString="IS", aFont=sysfont, aColor=tft.WHITE)
+    tft.text(aPos=[x+10,y+60], aString="ON", aFont=sysfont, aColor=tft.WHITE)
     sleep(0.5)
 
     print("Erasing")
@@ -514,14 +520,15 @@ def start_game():
 
     # as long as the game is running we need to repeat this loop
     while (winner == -1) and (empty_places > 0):
+        print("Winner", winner, "empty places", empty_places)
         print("Human, enter your move(1-9")
 
-        tft.rect(aStart=[0,90], aSize=[130,100],aColor=tft.BLACK)
-        tft.text(aPos=[20,90], aString="YOUR", aColor=tft.RED, aFont=sysfont)
+        tft.fillrect(aStart=[0,80], aSize=[130,100],aColor=tft.BLACK)
+        tft.text(aPos=[20,80], aString="YOUR", aColor=tft.RED, aFont=sysfont)
         tft.text(aPos=[20,115], aString="MOVE", aColor=tft.RED, aFont=sysfont)
         move_to = 0
-        tft.fillcircle(aPos=[30,50],aRadius=15, aColor=tft.RED)
-        tft.fillcircle(aPos=[95,50],aRadius=15, aColor=tft.BLACK)
+        tft.fillcircle(aPos=[30,30],aRadius=15, aColor=tft.RED)
+        tft.fillcircle(aPos=[95,30],aRadius=15, aColor=tft.BLACK)
 
         if SERIAL_MONITOR_MODE:
             move_to = int(input(">"))
@@ -537,68 +544,77 @@ def start_game():
                 # Record the move
                 record_move(move_to + 10)
 
-                check_winner_row(1,0)
-                check_winner_row(2,0)
-                check_winner_row(3,0)
+                for n in range(1,3):
+                    check_winner_row(n,0)
+                    check_winner_col(n,0)
+                    # check_winner_row(2,0)
+                    # check_winner_row(3,0)
 
-                check_winner_col(1,0)
-                check_winner_col(2,0)
-                check_winner_col(3,0)
+                    # check_winner_col(1,0)
+                    # check_winner_col(2,0)
+                    # check_winner_col(3,0)
 
                 check_winner_diag(1,0)
                 check_winner_diag(2,0)
 
                 if (winner == -1) and (empty_places > 0):
                     # clean text area
-                    tft.rect(aStart=[0,90],aSize=[130,100], aColor=tft.BLACK)
-                    tft.text(aPos=[20,90],aString="PICO-TICO", aColor=tft.WHITE, aFont=sysfont)
+                    tft.fillrect(aStart=[0,80],aSize=[130,100], aColor=tft.BLACK)
+                    tft.text(aPos=[20,80],aString="PICO-TICO", aColor=tft.WHITE, aFont=sysfont)
                     tft.text(aPos=[20,115],aString="MOVE", aColor=tft.WHITE, aFont=sysfont)
-                    tft.fillcircle(aPos=[30,50],aRadius=15, aColor=tft.BLACK)
-                    tft.fillcircle(aPos=[95,50], aRadius=15, aColor=tft.YELLOW)
+                    tft.fillcircle(aPos=[30,30],aRadius=15, aColor=tft.BLACK)
+                    tft.fillcircle(aPos=[95,30], aRadius=15, aColor=tft.YELLOW)
                     reply_move()
 
-                check_winner_row(1,1)
-                check_winner_row(2,1)
-                check_winner_row(3,1)
+                for n in range(1,3):
+                    check_winner_row(n,1)
+                    check_winner_col(n,1)
+                    # check_winner_row(2,1)
+                    # check_winner_row(3,1)
 
-                check_winner_col(1,1)
-                check_winner_col(2,1)
-                check_winner_col(3,1)
+                    # check_winner_col(1,1)
+                    # check_winner_col(2,1)
+                    # check_winner_col(3,1)
 
                 check_winner_diag(1,1)
                 check_winner_diag(2,1)
             
             else:
                 print("Already taken!")
-                tft.rect(aStart=[0,90], aSize=[130,100], aColor=tft.BLACK)
-                tft.text(aPos=[20,90],aString="PLACE", aColor=tft.RED, aFont=sysfont)
+                tft.fillrect(aStart=[0,80], aSize=[130,100], aColor=tft.BLACK)
+                tft.text(aPos=[20,80],aString="PLACE", aColor=tft.RED, aFont=sysfont)
                 tft.text(aPos=[20,115], aString="TAKEN", aColor=tft.RED, aFont=sysfont)
                 sleep(0.25)
     go_home()
+    print("winner status:", winner, "empty spaces:", empty_places)
 
 # main loop
+setup()
 draw_click_start_message()
-print_menu()
-user_input = input("> ")
-user_input = user_input.upper()
+while True:
+    
+    print_menu()
+    user_input = input("> ")
+    user_input = user_input.upper()
 
-if user_input not in ['S','E','F','H']:
-    print("===WRONG INPUT===")
-else:
-    if user_input=='H':
-        go_home()
-    if user_input=="E":
-        erase()
-    if user_input=="F":
-        draw_frame()
+    if user_input not in ['S','E','F','H']:
+        print("===WRONG INPUT===")
     else:
-        start_game()
+        if user_input=='H':
+            go_home()
+        if user_input=="E":
+            erase()
+        if user_input=="F":
+            draw_frame()
+        else:
+            start_game()
 
-# Reset Game Variables
-winner = -1
-empty_places = 9
+    # Reset Game Variables
+    winner = -1
+    empty_places = 9
 
-# clear the board
-for _ in range(9):
-    board_values[_] = -1
+    # clear the board
+    for _ in range(9):
+        board_values[_] = -1
 
+print("end or program")
