@@ -193,7 +193,7 @@ def go_home():
     draw_to(ERASER_X, ERASER_Y)
     lift(LIFT0)
     sleep(0.1)
-    print("Homed")
+    # print("Homed")
 
 
 def sq(value:float):
@@ -403,7 +403,7 @@ def draw_move(move):
 
 
 def record_move(move:int):
-    global empty_places
+    global empty_places, board_values
     if (move >= 1) and (move <= 9):
         board_values[move -1] = 1
         empty_places -= 1
@@ -412,9 +412,11 @@ def record_move(move:int):
         empty_places -= 1
 
 def draw():
+    """ The Game was a draw"""
     x, y, w, h = 0, 80, 130, 100
     window(x,y,w,h,"Draw")
     tft.text(aPos=[x+35,y+42], aString="-=DRAW=-", aColor=tft.WHITE, aFont=sysfont)
+    print("Nobody won - Game was a draw.")
 
 def player_wins():
     # tft.fillrect(aStart=[0,80], aSize=[130,100], aColor=tft.BLACK)
@@ -509,6 +511,27 @@ def check_winner_diag(diag:int, player:int):
             lift(LIFT2)
             winner = player
 
+def print_board():
+    """ Print the board to the console """
+    board = [" ", " ", " ", " ", " ", " ", " ", " ", " "]
+    count = 0
+    for cell in board_values:
+        if cell == -1: 
+            board[count] = " "
+        if cell == 1: 
+            board[count] = "X"
+        if cell == 0: 
+            board[count] = "O"
+        count += 1
+   
+    print(" Current Game Board  |  ID Number of the cells")
+    print(" ",board[9-1], "|", board[6-1], "|", board[3-1],  "       9 | 6 | 3")
+    print(" ---+---+---      ---+---+---")
+    print(" ",board[8-1], "|", board[5-1], "|", board[2-1],  "       8 | 5 | 2")
+    print(" ---+---+---      ---+---+---")
+    print(" ",board[7-1], "|", board[4-1], "|", board[1-1],  "       7 | 4 | 1 ")
+    print("")
+
 def start_game():
     global winner, empty_places
     print("====GAME IS ON====")
@@ -534,7 +557,9 @@ def start_game():
 
     # as long as the game is running we need to repeat this loop
     while (winner == -1) and (empty_places > 0):
-        print("Winner", winner, "empty places", empty_places)
+        # print("Winner", winner, "empty places", empty_places)
+        
+        print_board()
         print("Human, enter your move(1-9")
 
         x, y, w, h = 0, 80, 130, 100
@@ -607,6 +632,7 @@ def start_game():
                 sleep(0.25)
             if (winner == -1) and (empty_places == 0):
                 draw()
+    print_board()
     go_home()
 
 # main loop
