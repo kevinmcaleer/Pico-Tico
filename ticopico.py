@@ -7,31 +7,40 @@ from micropython import const
 from tft_st7735 import TFT
 from time import sleep
 from math import acos, cos, sin, atan2, floor, sqrt, pi
-from servo import Servo
+from servo import MAX_PULSE_WIDTH, Servo, mapValue
 from random import *
 from machine import SPI, Pin, PWM
 from sysfont import sysfont
 
-DRAW_HUMAN_MOVE = False
+# Settings
+DRAW_HUMAN_MOVE = True
 SERIAL_MONITOR_MODE = True
+CALIBRATE = False
 
 # Servo Pins
-
-LEFT_SERVO_PIN = 5
-RIGHT_SERVO_PIN = 6
-LIFT_SERVO_PIN = 3
+LEFT_SERVO_PIN = 2
+RIGHT_SERVO_PIN = 1
+LIFT_SERVO_PIN = 0
 
 # lift_servo = Servo(minWidth=550, maxWidth=2500, frequency=50)
 # left_servo = Servo(minWidth=550, maxWidth=2500, frequency=50)
 # right_servo = Servo(minWidth=550, maxWidth=2500, frequency=50)
 
+min_duty = 1200 # 1200 # 2000
+max_duty = 8620 # 8620 # 8000
+
 # Other servo settings
-SERVO_LIFT = 1500
+SERVO_LIFT = max_duty-min_duty
 # if the pen is not touching the board, this is the value you should change
-Z_OFFSET = 525
-LIFT0 = 1110 + Z_OFFSET
-LIFT1 = 925 + Z_OFFSET
-LIFT2 = 735 + Z_OFFSET
+Z_OFFSET = 10
+# LIFT0 = 6000 + Z_OFFSET
+# LIFT1 = 4000 + Z_OFFSET
+# LIFT2 = 2000 + Z_OFFSET
+# 
+PEN_DOWN = 112 # Degrees - touching the surface
+LIFT1 = 100
+PEN_UP = 70 # all the way up
+
 LIFT_SPEED = 0.001 # in seconds
 
 lift_servo = PWM(Pin(LIFT_SERVO_PIN))
@@ -40,7 +49,9 @@ right_servo = PWM(Pin(RIGHT_SERVO_PIN))
 # left_servo.attach(LEFT_SERVO_PIN)
 # right_servo.attach(RIGHT_SERVO_PIN)
 lift_servo.freq(50)
-lift_servo.duty_u16(LIFT0)
+# lift_servo.duty_u16(LIFT0)
+left_servo.freq(50)
+right_servo.freq(50)
 
 # LCD Pins
 TFT_CS = 10
@@ -51,28 +62,42 @@ spi = SPI(1, baudrate=20000000, polarity=0, phase=0, sck=Pin(10), mosi=Pin(11), 
 tft=TFT(spi,16,17,18)
 
 # Side Servo Calibration
-SERVO_LEFT_FACTOR = 690
-SERVO_RIGHT_FACTOR = 690
+# SERVO_LEFT_FACTOR = 690
+# SERVO_RIGHT_FACTOR = 690
+# print("value:", mapValue(690, 550,2500, 0, 180))
+SERVO_LEFT_FACTOR = int(mapValue(80, 0, 180, 550, 2500)) # 50
+SERVO_RIGHT_FACTOR = int(mapValue(70, 0, 180, 550, 2500)) # 70
+print("Servo Left Factor", SERVO_LEFT_FACTOR)
+print("Servo Right Factor", SERVO_RIGHT_FACTOR)
+
+def pulse_from_angle(angle)->int:
+    """ Returns the pulse from an Angle provided """
+    pulse = int(mapValue(angle, 0,180,min_duty, max_duty))
+    return pulse
 
 # Zero Position
-SERVO_LEFT_NULL = 1950
-SERVO_RIGHT_NULL = 815
+# SERVO_LEFT_NULL = 1950
+# SERVO_RIGHT_NULL = 815
+SERVO_LEFT_NULL = pulse_from_angle(155) # 142, 130, 155
+SERVO_RIGHT_NULL = pulse_from_angle(70) # 42, 60, 50
+
+print("Servo NULL Positions-  LEFT:", SERVO_LEFT_NULL, "RIGHT:", SERVO_RIGHT_NULL)
 
 # Length of arms
-L1 = 35.0
-L2 = 55.1
-L3 = 13.2
-L4 = 45.0
+L1 = 35.0 # millimetres
+L2 = 55.1 # millimetres
+L3 = 13.2 # millimetres
+L4 = 45.0 # millimetres
 
 # Origin points of left and right servos
-O1X = 24.0
-O1Y = -25.0
-O2X = 49.0
-O2Y = -25.0
+O1X = 24.0 # millimetres, from x0
+O1Y = -25.0 # millimetres from y0
+O2X = 49.0 # millimetres from x0
+O2Y = -25.0 # millimetres from y0
 
 # Home Cooridinates, where the eraser is
-ERASER_X = -11.0
-ERASER_Y = 45.5
+ERASER_X = -11.0 # millimetres from 0,0
+ERASER_Y = 45.5 # millimetres from 0,0
 last_x = ERASER_X
 last_y = ERASER_Y
 
@@ -86,8 +111,8 @@ empty_places = 9
 
 winner = -1
 
-WIN_X = 0
-WIN_Y = 80
+WIN_X = 0  # These are window coordinates on the screen
+WIN_Y = 80 # These are window coordinates on the screen
 
 def setup():
     tft.initr()
@@ -139,7 +164,7 @@ def draw_click_start_message():
     tft.text(aPos=[20,130], aString="Press S", aColor=tft.YELLOW, aFont=sysfont, nowrap=True)
     tft.text(aPos=[20,140], aString="to Start", aColor=tft.YELLOW, aFont=sysfont, nowrap=True)
     # draw_frame()
-    sleep(0.250)
+    # sleep(0.250)
 
 def print_menu():
     print("--==MAIN MENU==--")
@@ -149,52 +174,57 @@ def print_menu():
     print("==H== Go Home")
 
 def draw_frame():
-    lift(LIFT2)
-    sleep_value = 0.1
+    print("epoch 0")
+    lift(PEN_UP)
+    sleep_value = 0.01
     v1 = [50,110]
     v2 = [70,110]
     h1 = [45,115]
     h2 = [45,135]
-
-    # Vertical
+    
+    print("epoch1")
+    
     draw_to(30,10)
     tft.vline(aStart=v1, aLen=30, aColor=tft.WHITE)
     tft.vline(aStart=v2, aLen=30, aColor=tft.WHITE)
     tft.hline(aStart=h1, aLen=30, aColor=tft.WHITE)
     tft.hline(aStart=h2, aLen=30, aColor=tft.WHITE)
-    sleep(sleep_value)
-    # draw
-    lift(LIFT0)
+    # sleep(sleep_value)
+    
+    print("epoch2")
+    # Vertical
+    lift(PEN_DOWN)
     draw_to(25, 50)
-    lift(LIFT2)
+    lift(PEN_UP)
     draw_to(47, 10)
     sleep(sleep_value)
-    lift(LIFT0)
+    lift(PEN_DOWN)
     draw_to(45, 50)
-    lift(LIFT2)
+    lift(PEN_UP)
 
+    print("epoch3")
     # Horizontal
     draw_to(10,23)
-    
-    lift(LIFT0)
-    draw_to(60,23)
-    lift(LIFT2)
+    lift(PEN_DOWN)
+    draw_to(60, 23)
+    lift(PEN_UP)
     draw_to(10, 35)
-    lift(LIFT0)
+    lift(PEN_DOWN)
     draw_to(60, 35)
-    lift(LIFT2)
+    lift(PEN_UP)
+    print("epoch4")
 
 def go_home():
-    lift_servo.duty_u16(800)
-    left_servo.duty_u16(1633)
-    right_servo.duty_u16(2289)
-    
-    lift(LIFT2 - 100) # Lift all the way up
+    """ Return to home position """    
+    print('go home')
+    lift(PEN_UP) # Lift all the way up
+    print("draw to eraser")
     draw_to(ERASER_X, ERASER_Y)
-    lift(LIFT0)
-    sleep(0.1)
+    print("lift to surface")
+    lift(PEN_DOWN)
+    print("sleep")
+    sleep(0.001)
     # print("Homed")
-
 
 def sq(value:float):
     """ Returns the square of a number """
@@ -202,8 +232,6 @@ def sq(value:float):
 
 def set_xy(t_x:float, t_y:float):
     # print("set_xy, x:",t_x, "y:",t_y)
-
-    sleep(0.001)
     dx, dy, c = 1.0, 1.0, 1.0
     a1, a2, hx, hy = 1.0, 1.0, 1.0, 1.0
 
@@ -218,7 +246,10 @@ def set_xy(t_x:float, t_y:float):
 
     a1 = atan2(dy, dx)
     a2 = return_angle(L1, L2, c)
-    left_servo.duty_u16(floor(((a2 + a2 - pi) * SERVO_LEFT_FACTOR) + SERVO_LEFT_NULL))
+    # factor = mapValue(SERVO_LEFT_FACTOR, 550,2500, min_duty, max_duty)
+    pulse = floor(((a2 + a2 - pi) * SERVO_LEFT_FACTOR )+ SERVO_LEFT_NULL)
+    # print("pulse Left Servo:", pulse)
+    left_servo.duty_u16(pulse)
 
     # Calculate joinr arm point for triangle of the right servo arm
     a2 = return_angle(L2, L1, c)
@@ -235,7 +266,12 @@ def set_xy(t_x:float, t_y:float):
     a1 = atan2(dy, dx)
     a2 = return_angle(L1, L4, c)
 
-    right_servo.duty_u16(floor((a1 - a2) * SERVO_RIGHT_FACTOR) + SERVO_RIGHT_NULL)
+    # factor = mapValue(SERVO_RIGHT_FACTOR, 550,2500, min_duty, max_duty)
+    # print("Factor is:", factor,"SERVO_RIGHT_NULL:", SERVO_RIGHT_NULL)
+    pulse = floor(((a1 - a2) * SERVO_RIGHT_FACTOR) + SERVO_RIGHT_NULL)
+    # print("pulse: Right Servo:", pulse)
+    right_servo.duty_u16(pulse)
+    sleep(LIFT_SPEED)
 
 def draw_to(p_x:float, p_y:float):
     global last_x, last_y
@@ -247,17 +283,15 @@ def draw_to(p_x:float, p_y:float):
     # dx, dy of new point
     dx = p_x - last_x
     dy = p_y - last_y
+
     # path length in mm, times 4 equals steps per mm
     c = floor(7 * sqrt(dx * dx + dy * dy))
 
-    # print("c: before", c)
     if (c < 1): 
         c = 1
     
-    # print("c:", c)
     for i in range (c):
         # draw line point by point
-        # print("drawing line", last_x, i, dx, last_y, dy, c)
         set_xy(last_x + (i * dx / c), last_y + (i * dy / c))
 
     last_x = p_x
@@ -274,22 +308,25 @@ def return_angle(a:float, b:float, c:float):
     # print("acos_a_value:", acos_a_value)
     return acos(acos_a_value)
 
-def lift(lift:float):
+def lift(lift:int):
     
     global SERVO_LIFT
+    print("Lift called - value:", lift, "Servo lift value:", SERVO_LIFT)
     if SERVO_LIFT >= lift:
-        # print("SERVO_LIFT >= lift", SERVO_LIFT, "lift:", lift)
+        print("SERVO_LIFT >= lift", SERVO_LIFT, "lift:", lift)
         while SERVO_LIFT >= lift:
             # print("SERVO_LIFT >= lift", SERVO_LIFT, "lift:", lift)
-            SERVO_LIFT -= 1
-            lift_servo.duty_u16(SERVO_LIFT)
+            SERVO_LIFT -= 10
+            angle = int(mapValue(SERVO_LIFT, 0, 180, min_duty, max_duty))
+            lift_servo.duty_u16(angle)
             sleep(LIFT_SPEED)
     else:
-        # print("SERVO_LIFT = ", SERVO_LIFT, "Lift:", lift)
+        print("SERVO_LIFT <= ", SERVO_LIFT, "Lift:", lift)
         while (SERVO_LIFT <= lift):
             # print("SERVO_LIFT = ", SERVO_LIFT, "Lift:", lift)
-            SERVO_LIFT += 1
-            lift_servo.duty_u16(SERVO_LIFT)
+            SERVO_LIFT += 10
+            angle = int(mapValue(SERVO_LIFT, 0, 180, min_duty, max_duty))
+            lift_servo.duty_u16(angle)
             sleep(LIFT_SPEED)
 
 def bogenUZS(bx:float, by:float, radius:float, start:int, end:int, sqee:float):
@@ -314,26 +351,26 @@ def draw_x(bx:float, by:float):
     # Go
     draw_to(bx, by+1)
     # Draw
-    lift(LIFT0)
+    lift(PEN_DOWN)
     draw_to(bx + 10, by + 10)
     # Go
-    lift(LIFT2)
+    lift(PEN_UP)
     draw_to(bx + 10, by)
     # Draw
-    lift(LIFT0)
+    lift(PEN_DOWN)
     draw_to(bx, by + 10)
     lift(LIFT1)
 
 def draw_zero(bx:float, by:float):
     draw_to(bx + 6, by + 3)
-    lift(LIFT0)
+    lift(PEN_DOWN)
     bogenGZS(bx + 3.5, by + 5, 5, -0.8, 6.7, 0.5)
     lift(LIFT1)
 
 def erase():
     """ Wipes the game board of any marker pen """
     go_home()
-    lift(LIFT0)
+    lift(PEN_DOWN)
     draw_to(70, ERASER_Y)
     draw_to(5, ERASER_Y)
 
@@ -351,7 +388,7 @@ def erase():
     draw_to(40, 30)
 
     draw_to(ERASER_X, ERASER_Y)
-    lift(LIFT2 - 100)
+    lift(PEN_UP)
     print("Erase complete")
 
 def draw_move(move):
@@ -398,9 +435,8 @@ def draw_move(move):
         draw_to(5, 0)
 
     # Get out of the way
-    lift(LIFT2)
+    lift(PEN_UP)
     draw_to(10,10)
-
 
 def record_move(move:int):
     global empty_places, board_values
@@ -424,28 +460,30 @@ def player_wins():
     window(x,y,w,h,"Winner")
     tft.text(aPos=[x+35,y+32], aString="-=YOU=-", aColor=tft.WHITE, aFont=sysfont)
     tft.text(aPos=[x+35,y+42], aString="-=WIN=-", aColor=tft.WHITE, aFont=sysfont)
+    print("You Win!")
     
 def pico_tico_wins():
     x, y, w, h = 0, 80, 130, 100
     window(x,y,w,h,"Winner")
     tft.text(aPos=[x+25,y+32], aString="-=PICO-TICO=-", aColor=tft.WHITE, aFont=sysfont)
     tft.text(aPos=[x+25,y+42], aString="   -=WINS=-   ", aColor=tft.WHITE, aFont=sysfont)
+    print("Pico-Tico Wins!")
 
 def check_winner_col(col, player):
     global winner
     # Row
     if (board_values[(col-1)*3] == player) and (board_values[(col-1) * 3 + 1] == player) and (board_values[(col - 1) * 3 + 1] == player) and (board_values[(col -1) * 3 + 2] == player):
         print("--== Winner Col ==--")
-        print(player)
+        # print(player)
         if(player==0):
            player_wins()
         else:
             pico_tico_wins()
         draw_to(55 -20 * (4 - col - 1), 10)
         # Draw
-        lift(LIFT0)
+        lift(PEN_DOWN)
         draw_to(55 - 20 * (4 - col -1), 50)
-        lift(LIFT2)
+        lift(PEN_UP)
 
         winner = player
 
@@ -454,16 +492,16 @@ def check_winner_row(row:int, player:int):
     # row
     if (board_values[row -1] == player) and (board_values[row + 3 -1] == player) and (board_values[row + 6 -1] == player):
         print("--== Winner ROW ==--")
-        print(player)
+        # print(player)
         if player==0:
             player_wins()
         else:
             pico_tico_wins()
         draw_to(10, 43 - 14 * (row - 1))
         # Draw
-        lift(LIFT0)
+        lift(PEN_DOWN)
         draw_to(60,43 - 13 * (row -1))
-        lift(LIFT2)
+        lift(PEN_UP)
 
         winner = player
 
@@ -477,7 +515,7 @@ def reply_move():
             if empty_places_found == rand_empty_place:
                 draw_move(i + 1)
                 record_move(i + 1)
-                print("Replying to: ")
+                # print("Replying to: ")
                 print(i+1)
 
 def check_winner_diag(diag:int, player:int):
@@ -486,29 +524,29 @@ def check_winner_diag(diag:int, player:int):
     if diag == 1:
         if (board_values[1 -1] == player) and (board_values[5 -1] == player) and (board_values[9 - 1] == player):
             print("--== Winner DIAGONAL 1 ==--")
-            print(player)
+            # print(player)
             if player==0:
                 player_wins()
             else:
                 pico_tico_wins()
             draw_to(60,10)
-            lift(LIFT0)
+            lift(PEN_DOWN)
             draw_to(15,45)
-            lift(LIFT2)
+            lift(PEN_UP)
 
             winner = player
     else:
         if (board_values[7 - 1] == player) and (board_values[5-  1] == player) and (board_values[3 - 1] == player):
             print("--== Winner Diagonal 2 ==0--")
-            print(player)
+            
             if player == 0:
                 player_wins()
             else:
                 pico_tico_wins()
             draw_to(10,10)
-            lift(LIFT0)
+            lift(PEN_DOWN)
             draw_to(60,50)
-            lift(LIFT2)
+            lift(PEN_UP)
             winner = player
 
 def print_board():
@@ -525,11 +563,11 @@ def print_board():
         count += 1
    
     print(" Current Game Board  |  ID Number of the cells")
-    print(" ",board[9-1], "|", board[6-1], "|", board[3-1],  "       9 | 6 | 3")
-    print(" ---+---+---      ---+---+---")
-    print(" ",board[8-1], "|", board[5-1], "|", board[2-1],  "       8 | 5 | 2")
-    print(" ---+---+---      ---+---+---")
-    print(" ",board[7-1], "|", board[4-1], "|", board[1-1],  "       7 | 4 | 1 ")
+    print("        ",board[9-1], "|", board[6-1], "|", board[3-1],  "       9 | 6 | 3")
+    print("        ---+---+---      ---+---+---")
+    print("        ",board[8-1], "|", board[5-1], "|", board[2-1],  "       8 | 5 | 2")
+    print("        ---+---+---      ---+---+---")
+    print("        ",board[7-1], "|", board[4-1], "|", board[1-1],  "       7 | 4 | 1 ")
     print("")
 
 def start_game():
@@ -544,8 +582,8 @@ def start_game():
     tft.text(aPos=[x+10,y+60], aString="ON", aFont=sysfont, aColor=tft.WHITE)
     sleep(0.5)
 
-    print("Erasing")
-    erase()
+    # print("Erasing")
+    # erase()
 
     print("Drawing Frame")
     draw_frame()
@@ -577,7 +615,7 @@ def start_game():
         # check the move_to value is valid
         if (move_to > 0) and (move_to < 10):
             if board_values[move_to -1] == -1:
-                print("Moving to: ", move_to)
+                # print("Moving to: ", move_to)
 
                 if DRAW_HUMAN_MOVE:
                     draw_move(move_to + 10)
@@ -635,8 +673,47 @@ def start_game():
     print_board()
     go_home()
 
+def calibrate():
+    """ Calibrates the Left and Right Servo Factors """
+    global SERVO_LEFT_FACTOR, SERVO_RIGHT_FACTOR
+
+    keep_going = True
+    while keep_going:
+        print("Calibrating: SERVO_LEFT_FACTOR = ", SERVO_LEFT_FACTOR, "SERVO_RIGHT_FACTOR", SERVO_RIGHT_FACTOR)
+        # draw_to(-3, 29.2)
+        draw_to(10,10)
+        # sleep(0.500)
+        # draw_to(74.1, 28)
+        draw_to(20,10)
+        # sleep(0.500)
+        draw_to(20,0)
+        draw_to(10,0)
+        user_input = input("Enter 'l' for new LEFT_SERVO_FACTOR, 'r' for new RIGHT_SERVO_FACTOR, or 'q' to quit")
+        if user_input == "q":
+            keep_going = False
+        else:
+            if user_input == 'l':
+                user_input = int(input("Enter new value:"))
+                SERVO_LEFT_FACTOR = user_input
+            if user_input == 'r':
+                user_input = int(input("Enter new value:"))
+                SERVO_RIGHT_FACTOR = user_input
+
+def up():
+    lift(PEN_UP)
+
 # main loop
+print("Setup")
 setup()
+print("Setup complete")
+if CALIBRATE:
+    calibrate()
+    
+    input("Calibration Complete")
+
+print("Drawing Frame")
+draw_frame()
+
 draw_click_start_message()
 while True:
     
@@ -653,6 +730,8 @@ while True:
             erase()
         if user_input=="F":
             draw_frame()
+        if user_input=="U":
+            up()
         else:
             start_game()
 

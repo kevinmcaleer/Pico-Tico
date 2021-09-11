@@ -623,7 +623,7 @@ void checkWinnerDiag (int diag, int player) {
 
 
 
-void replyMove() {
+void Move() {
   //========= Reply move ======
   //We will generate a random number from 1 to the number of empty places
   //We will then go over the array and count the empty places we meet until we get to the needed place
