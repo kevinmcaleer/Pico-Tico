@@ -7,7 +7,6 @@ from micropython import const
 from tft_st7735 import TFT
 from time import sleep
 from math import acos, cos, sin, atan2, floor, sqrt, pi
-from servo import MAX_PULSE_WIDTH, Servo, mapValue
 from random import *
 from machine import SPI, Pin, PWM
 from sysfont import sysfont
@@ -69,6 +68,10 @@ SERVO_LEFT_FACTOR = int(mapValue(80, 0, 180, 550, 2500)) # 50
 SERVO_RIGHT_FACTOR = int(mapValue(70, 0, 180, 550, 2500)) # 70
 print("Servo Left Factor", SERVO_LEFT_FACTOR)
 print("Servo Right Factor", SERVO_RIGHT_FACTOR)
+
+def mapValue(value, in_min, in_max, out_min, out_max):
+    """ Returns a new value mapped in a desired range."""
+    return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
 
 def pulse_from_angle(angle)->int:
     """ Returns the pulse from an Angle provided """
@@ -227,28 +230,22 @@ def go_home():
     # print("Homed")
 
 def sq(value:float):
-    """ Returns the square of a number """
+    """ Returns the square of a number """ 
     return value * value
 
 def set_xy(t_x:float, t_y:float):
-    # print("set_xy, x:",t_x, "y:",t_y)
     dx, dy, c = 1.0, 1.0, 1.0
     a1, a2, hx, hy = 1.0, 1.0, 1.0, 1.0
 
     dx = t_x - O1X
     dy = t_y - O1Y
 
-    # print("dx:", dx, "dy:", dy)
-
     # polar length (c) and angle (a1)
     c = sqrt(sq(dx) + sq(dy))
-    # print("c: (sqrt):", c)
 
     a1 = atan2(dy, dx)
     a2 = return_angle(L1, L2, c)
-    # factor = mapValue(SERVO_LEFT_FACTOR, 550,2500, min_duty, max_duty)
     pulse = floor(((a2 + a2 - pi) * SERVO_LEFT_FACTOR )+ SERVO_LEFT_NULL)
-    # print("pulse Left Servo:", pulse)
     left_servo.duty_u16(pulse)
 
     # Calculate joinr arm point for triangle of the right servo arm
@@ -257,19 +254,14 @@ def set_xy(t_x:float, t_y:float):
     hy = t_y + L3 * sin(((a1 - a2) + 0.621) + pi)
 
     # Calculate triangle betwen pen joints, servo_right and arm joint
-
     dx = hx - O2X
     dy = hy - O2Y
-    # print("dx:", dx, "dy:", dy)    
-    # c = sqrt((dx * dx) + (dy * dy))
+
     c = sqrt(sq(dx) + sq(dy))
     a1 = atan2(dy, dx)
     a2 = return_angle(L1, L4, c)
 
-    # factor = mapValue(SERVO_RIGHT_FACTOR, 550,2500, min_duty, max_duty)
-    # print("Factor is:", factor,"SERVO_RIGHT_NULL:", SERVO_RIGHT_NULL)
     pulse = floor(((a1 - a2) * SERVO_RIGHT_FACTOR) + SERVO_RIGHT_NULL)
-    # print("pulse: Right Servo:", pulse)
     right_servo.duty_u16(pulse)
     sleep(LIFT_SPEED)
 
@@ -623,7 +615,7 @@ def start_game():
                 # Record the move
                 record_move(move_to + 10)
 
-                for n in range(1,3):
+                for n in range(1,4):
                     check_winner_row(n,0)
                     check_winner_col(n,0)
                     # check_winner_row(2,0)
@@ -647,7 +639,7 @@ def start_game():
                     tft.fillcircle(aPos=[95,30], aRadius=15, aColor=tft.YELLOW)
                     reply_move()
 
-                for n in range(1,3):
+                for n in range(1,4):
                     check_winner_row(n,1)
                     check_winner_col(n,1)
                     # check_winner_row(2,1)
@@ -741,6 +733,6 @@ while True:
 
     # clear the board
     for _ in range(9):
-        board_values[_] = -1
+        board_values[_] = -12
 
 print("end or program")

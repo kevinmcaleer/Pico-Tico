@@ -30,6 +30,8 @@ def mapValue(value, in_min, in_max, out_min, out_max):
 #     newDuty=min_pulse+(max_pulse-min_pulse)*(degrees/180)
 #     servoPin.duty_u16(int(newDuty))
 
+print("Setting the servos to the default position - once set, attached the servos.")
+
 while True:
     lift_pulse = int(mapValue(lift_angle, 0,180,min_pulse,max_pulse))
     left_pulse = int(mapValue(left_angle, 0,180,min_pulse,max_pulse))
