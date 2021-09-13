@@ -21,11 +21,11 @@ See the accompanying video:
 ---
 
 # Files
-- `configure.py` - this file helps you set the servos to the correct position before attaching the servo horns
-- `sysfont.py` - you need this file to enable the tft_st7735 library to draw text
-- `tft_st7725.py` - this is the ST7735 SPI driver library for the Tico-Pico screen
-- `ticopico.py` - this is the main program for playing tic-tac-toe. Rename this to main.py and upload the Pico if you want this to always start
-- `README.md` - this is this file you are reading now
-- `.gitignore` - this file contains lists of files to exclude from the source code control software, GIT
+- [`configure.py`](configure.py) - this file helps you set the servos to the correct position before attaching the servo horns
+- [`sysfont.py`](sysfont.py) - you need this file to enable the tft_st7735 library to draw text
+- [`tft_st7735.py`](tft_st7735.py) - this is the ST7735 SPI driver library for the Tico-Pico screen
+- [`ticopico.py`](ticopico.py) - this is the main program for playing tic-tac-toe. Rename this to main.py and upload the Pico if you want this to always start
+- [`README.md`](README.md) - this is this file you are reading now
+- [`.gitignore`](.gitignore) - this file contains lists of files to exclude from the source code control software, GIT
 
 ---
