@@ -16,7 +16,7 @@ This is the Original Arduino version of the code
 <https://github.com/kevinmcaleer/Pico-Tico>
 
 See the accompanying video:
-![https://youtu.be/U741QL8LzZM](https://www.youtube.com/embed/U741QL8LzZM)
+<iframe width="560" height="315" src="https://www.youtube.com/embed/U741QL8LzZM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 ---
 
